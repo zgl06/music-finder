@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Music Finder</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0f0f13;
+      color: #e8e8f0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2.5rem 1rem 4rem;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    header h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #a78bfa, #60a5fa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    header p {
+      margin-top: 0.4rem;
+      color: #7070a0;
+      font-size: 0.9rem;
+    }
+
+    .card {
+      background: #18181f;
+      border: 1px solid #2a2a3a;
+      border-radius: 14px;
+      padding: 1.5rem;
+      width: 100%;
+      max-width: 660px;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 0.6rem;
+    }
+
+    input[type="url"], input[type="text"] {
+      background: #0f0f13;
+      border: 1px solid #2a2a3a;
+      border-radius: 8px;
+      padding: 0.6rem 0.9rem;
+      color: #e8e8f0;
+      font-size: 0.92rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input[type="url"] { flex: 1; }
+    input:focus { border-color: #7c5cfc; }
+    input::placeholder { color: #44445a; }
+
+    button#detect-btn {
+      background: linear-gradient(135deg, #7c5cfc, #4f8ef7);
+      border: none;
+      border-radius: 8px;
+      padding: 0.6rem 1.2rem;
+      color: #fff;
+      font-size: 0.92rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: opacity 0.2s;
+    }
+    button#detect-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .time-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-top: 0.85rem;
+    }
+
+    .time-row label {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.82rem;
+      color: #7070a0;
+    }
+
+    .time-row input[type="text"] {
+      width: 80px;
+      padding: 0.4rem 0.6rem;
+      font-size: 0.82rem;
+    }
+
+    .time-row .hint {
+      font-size: 0.78rem;
+      color: #44445a;
+    }
+
+    /* Progress */
+    #progress-area {
+      margin-top: 1.25rem;
+      width: 100%;
+      max-width: 660px;
+    }
+
+    #status-msg {
+      font-size: 0.85rem;
+      color: #9090c0;
+      margin-bottom: 0.5rem;
+    }
+
+    #progress-bar {
+      height: 4px;
+      background: #2a2a3a;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    #progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #7c5cfc, #4f8ef7);
+      border-radius: 2px;
+      transition: width 0.3s ease;
+    }
+
+    /* Results */
+    #video-title {
+      margin-top: 1.5rem;
+      width: 100%;
+      max-width: 660px;
+      font-size: 0.82rem;
+      color: #55558a;
+    }
+
+    #results {
+      margin-top: 0.75rem;
+      width: 100%;
+      max-width: 660px;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .song-card {
+      background: #18181f;
+      border: 1px solid #2a2a3a;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.9rem 1rem;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .song-cover {
+      width: 56px;
+      height: 56px;
+      border-radius: 8px;
+      object-fit: cover;
+      background: #2a2a3a;
+      flex-shrink: 0;
+    }
+
+    .song-cover-placeholder {
+      width: 56px;
+      height: 56px;
+      border-radius: 8px;
+      background: #2a2a3a;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+    }
+
+    .song-info { flex: 1; min-width: 0; }
+
+    .song-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .song-artist {
+      font-size: 0.82rem;
+      color: #9090c0;
+      margin-top: 0.15rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .song-meta {
+      font-size: 0.75rem;
+      color: #55558a;
+      margin-top: 0.2rem;
+    }
+
+    .song-actions {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 0.4rem;
+      flex-shrink: 0;
+    }
+
+    .song-timestamp {
+      font-size: 0.75rem;
+      color: #55558a;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .spotify-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      background: #1db954;
+      border: none;
+      border-radius: 20px;
+      padding: 0.3rem 0.75rem;
+      color: #fff;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .spotify-btn:hover { opacity: 0.85; }
+
+    #no-results {
+      text-align: center;
+      color: #55558a;
+      font-size: 0.88rem;
+      padding: 1.5rem 0;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Music Finder</h1>
+  <p>Identify every song in any video — YouTube, Instagram, TikTok, and more</p>
+</header>
+
+<div class="card">
+  <div class="input-row">
+    <input type="url" id="url-input" placeholder="Paste a video URL..." />
+    <button id="detect-btn">Detect</button>
+  </div>
+  <div class="time-row">
+    <label>From <input type="text" id="start-input" placeholder="0:00" /></label>
+    <label>To <input type="text" id="end-input" placeholder="end" /></label>
+    <span class="hint">optional — e.g. 1:30 or 90</span>
+  </div>
+</div>
+
+<div id="progress-area" hidden>
+  <div id="status-msg"></div>
+  <div id="progress-bar"><div id="progress-fill"></div></div>
+</div>
+
+<div id="video-title" hidden></div>
+<div id="results"></div>
+
+<script>
+  const urlInput    = document.getElementById('url-input');
+  const startInput  = document.getElementById('start-input');
+  const endInput    = document.getElementById('end-input');
+  const detectBtn   = document.getElementById('detect-btn');
+  const progressArea = document.getElementById('progress-area');
+  const statusMsg   = document.getElementById('status-msg');
+  const progressFill = document.getElementById('progress-fill');
+  const videoTitle  = document.getElementById('video-title');
+  const results     = document.getElementById('results');
+
+  let activeSource = null;
+
+  function parseTime(s) {
+    s = (s || '').trim();
+    if (!s) return null;
+    if (s.includes(':')) {
+      const parts = s.split(':').map(Number);
+      if (parts.length === 2) return parts[0] * 60 + parts[1];
+      if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    }
+    const n = parseFloat(s);
+    return isNaN(n) ? null : n;
+  }
+
+  function formatTime(s) {
+    const m = Math.floor(s / 60);
+    const sec = String(s % 60).padStart(2, '0');
+    return `${m}:${sec}`;
+  }
+
+  function reset() {
+    if (activeSource) { activeSource.close(); activeSource = null; }
+    results.innerHTML = '';
+    videoTitle.hidden = true;
+    videoTitle.textContent = '';
+    progressArea.hidden = true;
+    progressFill.style.width = '0%';
+    statusMsg.textContent = '';
+  }
+
+  function addSongCard(song) {
+    const card = document.createElement('div');
+    card.className = 'song-card';
+
+    const coverHtml = song.cover_url
+      ? `<img class="song-cover" src="${song.cover_url}" alt="" loading="lazy" />`
+      : `<div class="song-cover-placeholder">♪</div>`;
+
+    const albumLine = song.album ? `<div class="song-meta">${escHtml(song.album)}</div>` : '';
+
+    card.innerHTML = `
+      ${coverHtml}
+      <div class="song-info">
+        <div class="song-title">${escHtml(song.title)}</div>
+        <div class="song-artist">${escHtml(song.artist)}</div>
+        ${albumLine}
+      </div>
+      <div class="song-actions">
+        <span class="song-timestamp">${formatTime(song.timestamp_s)}</span>
+        <a class="spotify-btn" href="${song.spotify_url}" target="_blank" rel="noopener">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
+          </svg>
+          Spotify
+        </a>
+      </div>
+    `;
+    results.appendChild(card);
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  detectBtn.addEventListener('click', async () => {
+    const url = urlInput.value.trim();
+    if (!url) { urlInput.focus(); return; }
+
+    reset();
+    detectBtn.disabled = true;
+
+    const body = { url };
+    const start = parseTime(startInput.value);
+    const end   = parseTime(endInput.value);
+    if (start !== null) body.start_time = start;
+    if (end   !== null) body.end_time   = end;
+
+    progressArea.hidden = false;
+    statusMsg.textContent = 'Starting...';
+
+    let songCount = 0;
+
+    try {
+      const resp = await fetch('/api/detect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '';
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+
+        const parts = buf.split('\n\n');
+        buf = parts.pop(); // keep incomplete chunk
+
+        for (const part of parts) {
+          const line = part.trim();
+          if (!line.startsWith('data:')) continue;
+          let evt;
+          try { evt = JSON.parse(line.slice(5).trim()); } catch { continue; }
+
+          if (evt.type === 'status') {
+            statusMsg.textContent = evt.message;
+            if (evt.phase === 'analyze') progressFill.style.width = '100%';
+          } else if (evt.type === 'download_progress') {
+            progressFill.style.width = `${evt.percent}%`;
+          } else if (evt.type === 'result') {
+            songCount++;
+            addSongCard(evt.song);
+          } else if (evt.type === 'done') {
+            statusMsg.textContent = songCount
+              ? `Found ${songCount} song${songCount > 1 ? 's' : ''}`
+              : 'No songs detected';
+            if (evt.video_title) {
+              videoTitle.textContent = evt.video_title;
+              videoTitle.hidden = false;
+            }
+            if (songCount === 0) {
+              results.innerHTML = '<div id="no-results">No music detected — the audio may be speech-only, too quiet, or not in Shazam\'s database.</div>';
+            }
+          } else if (evt.type === 'error') {
+            statusMsg.textContent = `Error: ${evt.message}`;
+            progressFill.style.background = '#f87171';
+          }
+        }
+      }
+    } catch (err) {
+      statusMsg.textContent = `Connection error: ${err.message}`;
+    } finally {
+      detectBtn.disabled = false;
+    }
+  });
+
+  urlInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') detectBtn.click();
+  });
+</script>
+</body>
+</html>
