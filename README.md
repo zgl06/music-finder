@@ -1,2 +1,2 @@
-# uni-resources
-Pull in course resources from D2L brightspace into onedrive
+# music-finder
+Analyze youtube, instagram, etc videos and detect the music being played.
