@@ -107,6 +107,62 @@
       color: #44445a;
     }
 
+    .samples-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-top: 0.65rem;
+      flex-wrap: wrap;
+    }
+
+    .samples-row label {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.82rem;
+      color: #7070a0;
+      white-space: nowrap;
+    }
+
+    .samples-row input[type="number"] {
+      width: 72px;
+      background: #0f0f13;
+      border: 1px solid #2a2a3a;
+      border-radius: 8px;
+      padding: 0.4rem 0.6rem;
+      color: #e8e8f0;
+      font-size: 0.82rem;
+      outline: none;
+      transition: border-color 0.2s;
+      -moz-appearance: textfield;
+    }
+    .samples-row input[type="number"]::-webkit-inner-spin-button { opacity: 0.4; }
+    .samples-row input[type="number"]:focus { border-color: #7c5cfc; }
+
+    .samples-note {
+      font-size: 0.78rem;
+      color: #44445a;
+    }
+
+    #samples-warning {
+      font-size: 0.78rem;
+      padding: 0.3rem 0.6rem;
+      border-radius: 6px;
+      display: none;
+    }
+    #samples-warning.warn {
+      display: inline-block;
+      background: #2a1f00;
+      color: #f59e0b;
+      border: 1px solid #78450a;
+    }
+    #samples-warning.danger {
+      display: inline-block;
+      background: #2a0a0a;
+      color: #f87171;
+      border: 1px solid #7a1a1a;
+    }
+
     /* Progress */
     #progress-area {
       margin-top: 1.25rem;
@@ -271,6 +327,11 @@
     <label>To <input type="text" id="end-input" placeholder="end" /></label>
     <span class="hint">optional — e.g. 1:30 or 90</span>
   </div>
+  <div class="samples-row">
+    <label>Sample every <input type="number" id="samples-input" placeholder="auto" min="8" max="9999" /> s</label>
+    <span class="samples-note">Each sample analyzes 8 s — audio between samples is skipped</span>
+    <span id="samples-warning"></span>
+  </div>
 </div>
 
 <div id="progress-area" hidden>
@@ -285,6 +346,8 @@
   const urlInput    = document.getElementById('url-input');
   const startInput  = document.getElementById('start-input');
   const endInput    = document.getElementById('end-input');
+  const samplesInput   = document.getElementById('samples-input');
+  const samplesWarning = document.getElementById('samples-warning');
   const detectBtn   = document.getElementById('detect-btn');
   const progressArea = document.getElementById('progress-area');
   const statusMsg   = document.getElementById('status-msg');
@@ -293,6 +356,26 @@
   const results     = document.getElementById('results');
 
   let activeSource = null;
+
+  samplesInput.addEventListener('input', () => {
+    const n = parseInt(samplesInput.value, 10);
+    samplesWarning.className = '';
+    samplesWarning.textContent = '';
+    if (!samplesInput.value || isNaN(n)) return;
+    const coverage = Math.min(100, Math.round(8 / n * 100));
+    if (n >= 8 && n < 16) {
+      // 50–100% coverage — fine, no warning
+    } else if (n < 8) {
+      samplesWarning.className = 'danger';
+      samplesWarning.textContent = 'Minimum is 8 s (= sample duration)';
+    } else if (coverage <= 15) {
+      samplesWarning.className = 'danger';
+      samplesWarning.textContent = `Only ${coverage}% of audio analyzed — many songs will be missed`;
+    } else if (coverage <= 30) {
+      samplesWarning.className = 'warn';
+      samplesWarning.textContent = `${coverage}% of audio analyzed — some songs may be missed`;
+    }
+  });
 
   function parseTime(s) {
     s = (s || '').trim();
@@ -368,6 +451,8 @@
     const end   = parseTime(endInput.value);
     if (start !== null) body.start_time = start;
     if (end   !== null) body.end_time   = end;
+    const ns = parseInt(samplesInput.value, 10);
+    if (!isNaN(ns) && ns >= 8) body.sample_interval = ns;
 
     progressArea.hidden = false;
     statusMsg.textContent = 'Starting...';

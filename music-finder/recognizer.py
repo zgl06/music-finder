@@ -10,7 +10,7 @@ from pydub import AudioSegment
 from _shazam import Shazam
 
 # Duration of each sample chunk in milliseconds
-CHUNK_MS = 15_000
+CHUNK_MS = 8_000
 # Skip the first N seconds of a full video to avoid silent intros
 START_OFFSET_S = 5
 # Max concurrent Shazam requests (rate-limit protection)
@@ -105,14 +105,17 @@ async def identify_songs(
     start_time: float | None = None,
     end_time: float | None = None,
     on_result: Callable[[dict], Awaitable[None]] | None = None,
+    sample_interval: int | None = None,
 ) -> list[dict]:
     """
     Sample the audio at regular intervals and identify any songs.
 
+    Each sample sends CHUNK_MS (8 s) of audio to Shazam starting at that timestamp.
+    Audio between samples is not analyzed.
+
     Sampling strategy:
-      - Full video: starts at START_OFFSET_S, every 30 s (≤5 min) or 60 s (>5 min)
-      - With range: samples only within [start_time, end_time]
-      - Hard cap of MAX_SAMPLES chunks
+      - sample_interval=None (auto): interval = max(30, span // 30), targeting ~30 samples
+      - sample_interval=N: use exactly N seconds between samples (minimum 8 s = chunk size)
       - Up to _SHAZAM_CONCURRENCY concurrent Shazam requests
 
     As each unique song is found, on_result(song_dict) is awaited immediately
@@ -130,9 +133,13 @@ async def identify_songs(
         effective_start = int(start_time) if start_time is not None else 0
 
     span = effective_end - effective_start
-    # Scale interval so we always get ~30 samples regardless of video length.
-    # Minimum 30 s between samples; grows for longer videos so analysis stays fast.
-    interval_s = max(30, span // 30)
+    chunk_s = CHUNK_MS // 1000  # 8 s
+    if sample_interval is not None:
+        # User-specified interval: enforce minimum = chunk size (no point going shorter)
+        interval_s = max(chunk_s, sample_interval)
+    else:
+        # Auto: target ~30 samples, minimum 30 s interval
+        interval_s = max(30, span // 30)
     timestamps = list(range(effective_start, effective_end, interval_s))
 
     shazam = Shazam()

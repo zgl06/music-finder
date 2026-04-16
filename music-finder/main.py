@@ -18,6 +18,7 @@ class DetectRequest(BaseModel):
     url: str
     start_time: float | None = None
     end_time: float | None = None
+    sample_interval: int | None = None  # seconds between samples; None = auto
 
 
 @app.get("/")
@@ -52,6 +53,8 @@ async def detect(req: DetectRequest):
         and req.start_time >= req.end_time
     ):
         return _err_stream("start_time must be less than end_time")
+    if req.sample_interval is not None and req.sample_interval < 8:
+        return _err_stream("sample_interval must be at least 8 seconds")
 
     async def event_stream():
         progress_queue: asyncio.Queue[int] = asyncio.Queue()
@@ -97,7 +100,7 @@ async def detect(req: DetectRequest):
 
         try:
             analyze_task = asyncio.create_task(
-                identify_songs(mp3_path, req.start_time, req.end_time, on_result)
+                identify_songs(mp3_path, req.start_time, req.end_time, on_result, req.sample_interval)
             )
 
             while not analyze_task.done():
