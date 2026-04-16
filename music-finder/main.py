@@ -56,7 +56,7 @@ async def detect(req: DetectRequest):
     async def event_stream():
         progress_queue: asyncio.Queue[int] = asyncio.Queue()
         result_queue: asyncio.Queue[dict] = asyncio.Queue()
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         def on_progress(pct: int):
             loop.call_soon_threadsafe(progress_queue.put_nowait, pct)

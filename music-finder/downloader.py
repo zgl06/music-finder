@@ -37,6 +37,7 @@ def download_audio(
     ydl_opts = {
         # Prefer a single-file audio stream to avoid slow DASH multi-fragment downloads
         "format": "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/best",
+        "noplaylist": True,  # never download an entire playlist, just the single video
         "outtmpl": os.path.join(tmp, "%(title)s.%(ext)s"),
         "postprocessors": [
             {

@@ -2,6 +2,8 @@ fastapi
 uvicorn[standard]
 yt-dlp
 pydub
-shazamio
 httpx
+aiohttp
+aiofiles
+numpy
 audioop-lts

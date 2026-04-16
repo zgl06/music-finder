@@ -7,10 +7,8 @@ from urllib.parse import quote
 
 import httpx
 from pydub import AudioSegment
-from shazamio import Shazam
+from _shazam import Shazam
 
-# Maximum number of audio chunks to sample per video
-MAX_SAMPLES = 15
 # Duration of each sample chunk in milliseconds
 CHUNK_MS = 15_000
 # Skip the first N seconds of a full video to avoid silent intros
@@ -91,7 +89,7 @@ async def _recognize_chunk(
     async with sem:
         for attempt in range(2):
             try:
-                result = await shazam.recognize(audio_bytes)
+                result = await asyncio.wait_for(shazam.recognize_song(audio_bytes), timeout=20)
                 if result.get("matches") or attempt == 1:
                     return ts, result
                 await asyncio.sleep(0.5)
@@ -132,8 +130,10 @@ async def identify_songs(
         effective_start = int(start_time) if start_time is not None else 0
 
     span = effective_end - effective_start
-    interval_s = 30 if span <= 300 else 60
-    timestamps = list(range(effective_start, effective_end, interval_s))[:MAX_SAMPLES]
+    # Scale interval so we always get ~30 samples regardless of video length.
+    # Minimum 30 s between samples; grows for longer videos so analysis stays fast.
+    interval_s = max(30, span // 30)
+    timestamps = list(range(effective_start, effective_end, interval_s))
 
     shazam = Shazam()
     sem = asyncio.Semaphore(_SHAZAM_CONCURRENCY)
